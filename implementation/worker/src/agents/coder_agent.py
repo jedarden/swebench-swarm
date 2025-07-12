@@ -31,6 +31,14 @@ class CoderAgent(BaseAgent):
         )
         self.code_generator = CodeGenerator()
         self.syntax_validator = SyntaxValidator()
+        
+        # Initialize Claude Max if available
+        self.claude_max = None
+        if config.claude_max_enabled:
+            from ..services.claude_max_integration import ClaudeMaxIntegration
+            self.claude_max = ClaudeMaxIntegration(
+                max_instances=config.claude_max_instances or 5
+            )
     
     async def _execute_task_impl(self, task_context: TaskContext) -> CodeSolution:
         """Generate code solution based on analysis and requirements"""
@@ -123,6 +131,42 @@ class CoderAgent(BaseAgent):
         
         primary_language = plan.get("primary_language", "python")
         
+        # Use Claude Max for parallel generation if available
+        if self.claude_max and len(problem.files) > 1:
+            self.logger.info("Using Claude Max for parallel code generation", 
+                           file_count=len(problem.files))
+            
+            # Generate all files in parallel
+            results = await self.claude_max.solve_problem_parallel(
+                problem_id=problem.id,
+                problem_description=problem.description,
+                files=problem.files
+            )
+            
+            # Process results
+            for i, file_path in enumerate(problem.files):
+                try:
+                    fix = results["fixes"][i]
+                    if fix.get("success"):
+                        is_new_file = self._is_new_file(file_path, problem.description)
+                        code_content = fix.get("code", "")
+                        
+                        if is_new_file:
+                            code_changes["created"][file_path] = code_content
+                        else:
+                            code_changes["modified"][file_path] = code_content
+                    else:
+                        raise Exception(fix.get("error", "Unknown error"))
+                        
+                except Exception as e:
+                    self.logger.error("Failed to process Claude Max result", 
+                                    file=file_path, error=str(e))
+                    error_comment = f"# ERROR: {str(e)}"
+                    code_changes["modified"][file_path] = error_comment
+            
+            return code_changes
+        
+        # Fallback to sequential generation
         for file_path in problem.files:
             try:
                 # Determine if this is a modification or creation

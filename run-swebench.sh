@@ -43,6 +43,21 @@ check_prerequisites() {
         npm install -g @anthropic/claude-code || true
     fi
     
+    # Check Claude Code authentication
+    if ! claude auth status >/dev/null 2>&1; then
+        echo -e "${YELLOW}Claude Code not authenticated. Please login:${NC}"
+        echo -e "${BLUE}Run: claude login${NC}"
+        echo -e "${BLUE}This will open a browser to authenticate with your Claude Max subscription${NC}"
+        exit 1
+    fi
+    
+    # Verify Claude Max subscription
+    if claude account --json 2>/dev/null | jq -r '.subscription' | grep -qi "max"; then
+        echo -e "${GREEN}✓ Claude Max subscription detected${NC}"
+    else
+        echo -e "${YELLOW}Warning: Claude Max subscription not detected. Performance may be limited.${NC}"
+    fi
+    
     # Check Claude Flow
     if ! npx claude-flow@alpha --version >/dev/null 2>&1; then
         echo -e "${YELLOW}Claude Flow not available. Installing...${NC}"
