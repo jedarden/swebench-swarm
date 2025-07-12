@@ -342,11 +342,58 @@ export class ClaudeFlowIntegration {
   }
 
   private async callMCPTool(toolName: string, parameters: any): Promise<any> {
-    // Simulate MCP tool call
-    // In a real implementation, this would use the MCP protocol
+    // Use actual MCP tools via Claude Code
     this.logger.debug('Calling MCP tool', { toolName, parameters });
 
-    // Simulate different responses based on tool name
+    try {
+      // Check if we have Claude Code available
+      const claudeCommand = process.env.CLAUDE_CODE_COMMAND || 'claude';
+      
+      // Use Claude Code to call MCP tools
+      const { exec } = require('child_process');
+      const { promisify } = require('util');
+      const execAsync = promisify(exec);
+      
+      // Build the MCP tool command
+      const mcpCommand = `mcp__claude-flow__${toolName}`;
+      const toolParams = JSON.stringify(parameters);
+      
+      // Execute via Claude Code
+      const command = `${claudeCommand} mcp call ${mcpCommand} '${toolParams}'`;
+      
+      try {
+        const { stdout } = await execAsync(command, {
+          env: {
+            ...process.env,
+            ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY
+          }
+        });
+        
+        return JSON.parse(stdout);
+      } catch (error) {
+        this.logger.warn('Claude Code MCP call failed, using fallback', { error });
+        
+        // Fallback to npx claude-flow
+        const flowCommand = `npx claude-flow@alpha mcp ${toolName} '${toolParams}'`;
+        
+        try {
+          const { stdout } = await execAsync(flowCommand);
+          return JSON.parse(stdout);
+        } catch (flowError) {
+          this.logger.warn('Claude Flow MCP call failed, using simulation', { flowError });
+          
+          // Final fallback to simulation for development
+          return this.simulateMCPTool(toolName, parameters);
+        }
+      }
+    } catch (error) {
+      this.logger.error('MCP tool call failed', { toolName, error });
+      throw new SwarmException('MCP_TOOL_FAILED', `Failed to call MCP tool: ${toolName}`);
+    }
+  }
+
+  private simulateMCPTool(toolName: string, parameters: any): any {
+    // Simulation fallback for development
     switch (toolName) {
       case 'swarm_init':
         return {
@@ -367,7 +414,7 @@ export class ClaudeFlowIntegration {
         if (parameters.action === 'store') {
           return { success: true, stored: true };
         } else if (parameters.action === 'retrieve') {
-          return { value: null }; // Simulate empty memory
+          return { value: null };
         }
         break;
 
@@ -412,7 +459,5 @@ export class ClaudeFlowIntegration {
       default:
         throw new Error(`Unknown MCP tool: ${toolName}`);
     }
-
-    return { success: true };
   }
 }

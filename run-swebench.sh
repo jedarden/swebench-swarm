@@ -36,6 +36,18 @@ check_prerequisites() {
         echo -e "${YELLOW}GitHub CLI not authenticated. Running 'gh auth login'...${NC}"
         gh auth login
     fi
+    
+    # Check Claude Code
+    if ! command -v claude >/dev/null 2>&1; then
+        echo -e "${YELLOW}Claude Code not installed. Installing...${NC}"
+        npm install -g @anthropic/claude-code || true
+    fi
+    
+    # Check Claude Flow
+    if ! npx claude-flow@alpha --version >/dev/null 2>&1; then
+        echo -e "${YELLOW}Claude Flow not available. Installing...${NC}"
+        npm install -g claude-flow@alpha || true
+    fi
 }
 
 # Get random problem from SWE-Bench
@@ -99,7 +111,10 @@ main() {
 PROBLEM_ID=$PROBLEM_ID
 REPO_NAME=$REPO_NAME
 CLAUDE_API_KEY=${CLAUDE_API_KEY:-}
+ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-${CLAUDE_API_KEY:-}}
 GITHUB_TOKEN=$(gh auth token)
+CLAUDE_CODE_ENABLED=true
+CLAUDE_FLOW_ENABLED=true
 EOF
     
     # Start services
@@ -111,11 +126,21 @@ EOF
     status "Waiting for services to initialize..."
     sleep 10
     
+    # Initialize Claude Flow swarm
+    status "Initializing Claude Flow swarm..."
+    npx claude-flow@alpha swarm init --topology hierarchical --max-agents 8 || true
+    
     # Submit the problem
     status "Submitting problem: $PROBLEM_ID"
+    
+    # First use Claude Code to analyze the problem
+    status "Analyzing problem with Claude Code..."
+    ANALYSIS=$(claude analyze --problem "$PROBLEM_ID" --repo "$REPO_NAME" --json 2>/dev/null || echo "{}")
+    
+    # Submit to coordinator with analysis
     TASK_RESPONSE=$(curl -s -X POST http://localhost:3000/api/tasks \
         -H "Content-Type: application/json" \
-        -d "{\"problem_id\": \"$PROBLEM_ID\", \"repo\": \"$REPO_NAME\"}")
+        -d "{\"problem_id\": \"$PROBLEM_ID\", \"repo\": \"$REPO_NAME\", \"analysis\": $ANALYSIS}")
     
     TASK_ID=$(echo "$TASK_RESPONSE" | grep -o '"id":"[^"]*' | cut -d'"' -f4)
     

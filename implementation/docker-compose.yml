@@ -44,6 +44,10 @@ services:
       - DATABASE_URL=postgresql://swarm_user:swarm_password@postgres:5432/swebench_swarm
       - REDIS_URL=redis://redis:6379
       - CLAUDE_FLOW_ENABLED=true
+      - CLAUDE_CODE_ENABLED=true
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
       - LOG_LEVEL=info
     depends_on:
       postgres:
@@ -63,6 +67,10 @@ services:
       - AGENT_TYPE=researcher
       - COORDINATOR_URL=http://coordinator:3000
       - CLAUDE_CODE_ENABLED=true
+      - CLAUDE_FLOW_ENABLED=true
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
       - LOG_LEVEL=info
       - WORKER_ID=researcher-1
     depends_on:
@@ -81,6 +89,10 @@ services:
       - AGENT_TYPE=coder
       - COORDINATOR_URL=http://coordinator:3000
       - CLAUDE_CODE_ENABLED=true
+      - CLAUDE_FLOW_ENABLED=true
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
       - LOG_LEVEL=info
       - WORKER_ID=coder-1
     depends_on:
@@ -100,6 +112,10 @@ services:
       - AGENT_TYPE=tester
       - COORDINATOR_URL=http://coordinator:3000
       - CLAUDE_CODE_ENABLED=true
+      - CLAUDE_FLOW_ENABLED=true
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
       - LOG_LEVEL=info
       - WORKER_ID=tester-1
     depends_on:
@@ -118,6 +134,10 @@ services:
       - AGENT_TYPE=reviewer
       - COORDINATOR_URL=http://coordinator:3000
       - CLAUDE_CODE_ENABLED=true
+      - CLAUDE_FLOW_ENABLED=true
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
       - LOG_LEVEL=info
       - WORKER_ID=reviewer-1
     depends_on:
@@ -168,6 +188,7 @@ volumes:
   prometheus_data:
   loki_data:
   grafana_data:
+  claude_flow_memory:
 
 networks:
   default:

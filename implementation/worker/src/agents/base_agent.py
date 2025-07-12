@@ -39,6 +39,10 @@ class BaseAgent(ABC):
         self._running = True
         self.agent.status = AgentStatus.IDLE
         
+        # Initialize Claude Flow coordination
+        if self.claude_code:
+            await self._initialize_claude_flow()
+        
         # Register with coordinator
         await self._register_with_coordinator()
         
@@ -320,18 +324,56 @@ class BaseAgent(ABC):
                         success_rate=perf.success_rate,
                         average_time=perf.average_time)
     
+    async def _initialize_claude_flow(self):
+        """Initialize Claude Flow for this agent"""
+        try:
+            if not self.claude_code:
+                return
+                
+            # Initialize swarm participation
+            from ..models.types import ClaudeCodeRequest
+            
+            request = ClaudeCodeRequest(
+                operation="agent_spawn",
+                requirements=f"Initialize {self.agent.type.value} agent",
+                context={
+                    "agent_type": self.agent.type.value,
+                    "agent_id": self.agent.id,
+                    "capabilities": self.agent.capabilities.__dict__ if self.agent.capabilities else {}
+                }
+            )
+            
+            response = await self.claude_code.call_claude_code(request)
+            if response.success:
+                self.logger.info("Claude Flow agent initialized", result=response.result)
+                
+        except Exception as e:
+            self.logger.error("Failed to initialize Claude Flow", error=str(e))
+    
     async def _run_claude_flow_hook(self, hook_type: str, description: str):
         """Run Claude Flow coordination hook"""
         try:
-            # Simulate Claude Flow hook execution
-            hook_data = {
-                "agent_id": self.agent.id,
-                "hook_type": hook_type,
-                "description": description,
-                "timestamp": datetime.now().isoformat()
-            }
+            if not self.claude_code:
+                return
+                
+            # Use actual Claude Flow hooks via command line
+            import subprocess
+            import json
             
-            self.logger.debug(f"Claude Flow hook: {hook_type}", **hook_data)
+            cmd = [
+                "npx", "claude-flow@alpha", "hooks", hook_type,
+                "--description", description,
+                "--agent-id", self.agent.id,
+                "--agent-type", self.agent.type.value,
+                "--json"
+            ]
+            
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            if result.returncode == 0:
+                hook_result = json.loads(result.stdout) if result.stdout else {}
+                self.logger.debug(f"Claude Flow hook executed: {hook_type}", result=hook_result)
+            else:
+                self.logger.error(f"Claude Flow hook failed: {hook_type}", error=result.stderr)
             
         except Exception as e:
             self.logger.error(f"Claude Flow hook failed: {hook_type}", error=str(e))
@@ -339,8 +381,25 @@ class BaseAgent(ABC):
     async def _store_coordination_data(self, key: str, data: Dict[str, Any]):
         """Store coordination data in Claude Flow memory"""
         try:
-            # Simulate storing data in Claude Flow memory
-            self.logger.debug("Storing coordination data", key=key, data_type=type(data).__name__)
+            if not self.claude_code:
+                return
+                
+            from ..models.types import ClaudeCodeRequest
+            
+            request = ClaudeCodeRequest(
+                operation="memory_store",
+                requirements="Store coordination data",
+                context={
+                    "key": f"agent/{self.agent.id}/{key}",
+                    "value": data
+                }
+            )
+            
+            response = await self.claude_code.call_claude_code(request)
+            if response.success:
+                self.logger.debug("Stored coordination data", key=key)
+            else:
+                self.logger.error("Failed to store coordination data", key=key, error=response.error)
             
         except Exception as e:
             self.logger.error("Failed to store coordination data", key=key, error=str(e))
@@ -348,9 +407,25 @@ class BaseAgent(ABC):
     async def _retrieve_coordination_data(self, key: str) -> Optional[Any]:
         """Retrieve coordination data from Claude Flow memory"""
         try:
-            # Simulate retrieving data from Claude Flow memory
-            self.logger.debug("Retrieving coordination data", key=key)
-            return None  # Placeholder
+            if not self.claude_code:
+                return None
+                
+            # Use Claude Flow memory retrieval
+            import subprocess
+            import json
+            
+            cmd = [
+                "npx", "claude-flow@alpha", "memory", "retrieve",
+                "--key", f"agent/{self.agent.id}/{key}",
+                "--json"
+            ]
+            
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            if result.returncode == 0 and result.stdout:
+                data = json.loads(result.stdout)
+                return data.get("value")
+            
+            return None
             
         except Exception as e:
             self.logger.error("Failed to retrieve coordination data", key=key, error=str(e))
