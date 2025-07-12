@@ -1,0 +1,174 @@
+version: '3.8'
+
+services:
+  # PostgreSQL database
+  postgres:
+    image: postgres:13-alpine
+    environment:
+      POSTGRES_DB: swebench_swarm
+      POSTGRES_USER: swarm_user
+      POSTGRES_PASSWORD: swarm_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U swarm_user -d swebench_swarm"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for caching and coordination
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # SWE-Bench Swarm Coordinator
+  coordinator:
+    build:
+      context: ./coordinator
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_URL=postgresql://swarm_user:swarm_password@postgres:5432/swebench_swarm
+      - REDIS_URL=redis://redis:6379
+      - CLAUDE_FLOW_ENABLED=true
+      - LOG_LEVEL=info
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - coordinator_logs:/app/logs
+    restart: unless-stopped
+
+  # SWE-Bench Worker - Researcher
+  worker-researcher:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    environment:
+      - AGENT_TYPE=researcher
+      - COORDINATOR_URL=http://coordinator:3000
+      - CLAUDE_CODE_ENABLED=true
+      - LOG_LEVEL=info
+      - WORKER_ID=researcher-1
+    depends_on:
+      - coordinator
+    volumes:
+      - worker_workspace:/app/workspace
+      - worker_logs:/app/logs
+    restart: unless-stopped
+
+  # SWE-Bench Worker - Coder
+  worker-coder:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    environment:
+      - AGENT_TYPE=coder
+      - COORDINATOR_URL=http://coordinator:3000
+      - CLAUDE_CODE_ENABLED=true
+      - LOG_LEVEL=info
+      - WORKER_ID=coder-1
+    depends_on:
+      - coordinator
+    volumes:
+      - worker_workspace:/app/workspace
+      - worker_logs:/app/logs
+    restart: unless-stopped
+    scale: 2  # Run 2 coder instances
+
+  # SWE-Bench Worker - Tester
+  worker-tester:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    environment:
+      - AGENT_TYPE=tester
+      - COORDINATOR_URL=http://coordinator:3000
+      - CLAUDE_CODE_ENABLED=true
+      - LOG_LEVEL=info
+      - WORKER_ID=tester-1
+    depends_on:
+      - coordinator
+    volumes:
+      - worker_workspace:/app/workspace
+      - worker_logs:/app/logs
+    restart: unless-stopped
+
+  # SWE-Bench Worker - Reviewer
+  worker-reviewer:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    environment:
+      - AGENT_TYPE=reviewer
+      - COORDINATOR_URL=http://coordinator:3000
+      - CLAUDE_CODE_ENABLED=true
+      - LOG_LEVEL=info
+      - WORKER_ID=reviewer-1
+    depends_on:
+      - coordinator
+    volumes:
+      - worker_workspace:/app/workspace
+      - worker_logs:/app/logs
+    restart: unless-stopped
+
+  # Monitoring and observability
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+
+  # Log aggregation
+  loki:
+    image: grafana/loki:latest
+    ports:
+      - "3100:3100"
+    volumes:
+      - loki_data:/loki
+
+  # Visualization
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+
+volumes:
+  postgres_data:
+  redis_data:
+  coordinator_logs:
+  worker_workspace:
+  worker_logs:
+  prometheus_data:
+  loki_data:
+  grafana_data:
+
+networks:
+  default:
+    name: swebench-swarm-network
