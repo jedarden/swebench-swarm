@@ -49,23 +49,32 @@ After successful validation:
 Run SWE-Bench problems and submit results as a pull request:
 
 ```bash
+# Run a random problem from SWE-Bench
+curl -sSL https://raw.githubusercontent.com/jedarden/swebench-swarm/main/run-swebench.sh | bash
+
+# Run a specific problem
 curl -sSL https://raw.githubusercontent.com/jedarden/swebench-swarm/main/run-swebench.sh | bash -s -- <problem_id> <repo_name>
 ```
 
-**Prerequisites**: Docker, Docker Compose, Git, and GitHub CLI (`gh`) must be installed.
+**Prerequisites**: Docker, Docker Compose, Git, GitHub CLI (`gh`), curl, and jq must be installed.
 
-Example:
+Examples:
 ```bash
+# Random problem (automatically selected from SWE-Bench Lite)
+curl -sSL https://raw.githubusercontent.com/jedarden/swebench-swarm/main/run-swebench.sh | bash
+
+# Specific problem
 curl -sSL https://raw.githubusercontent.com/jedarden/swebench-swarm/main/run-swebench.sh | bash -s -- django__django-12345 django/django
 ```
 
 This command will:
-1. Clone and set up SWE-Bench Swarm
-2. Start the Docker services
-3. Submit and solve the specified problem
-4. Collect results and performance metrics
-5. Fork the repository (if needed)
-6. Create a pull request with prefix `results/`
+1. Select a random problem from SWE-Bench Lite dataset (if no args provided)
+2. Clone and set up SWE-Bench Swarm
+3. Start the Docker services
+4. Submit and solve the problem
+5. Collect results and performance metrics
+6. Fork the repository (if needed)
+7. Create a pull request with prefix `results/`
 
 ### Manual Setup
 

@@ -22,6 +22,8 @@ check_prerequisites() {
     command -v docker-compose >/dev/null 2>&1 || missing+=("docker-compose")
     command -v git >/dev/null 2>&1 || missing+=("git")
     command -v gh >/dev/null 2>&1 || missing+=("gh")
+    command -v curl >/dev/null 2>&1 || missing+=("curl")
+    command -v jq >/dev/null 2>&1 || missing+=("jq")
     
     if [ ${#missing[@]} -ne 0 ]; then
         echo -e "${YELLOW}Missing prerequisites: ${missing[*]}${NC}"
@@ -36,19 +38,51 @@ check_prerequisites() {
     fi
 }
 
+# Get random problem from SWE-Bench
+get_random_problem() {
+    status "Fetching random problem from SWE-Bench..."
+    
+    # Using SWE-Bench lite dataset for better success rates
+    local DATASET_URL="https://raw.githubusercontent.com/princeton-nlp/SWE-bench/main/swebench/test_lite_300.json"
+    
+    # Download dataset and select random problem
+    local PROBLEMS=$(curl -sL "$DATASET_URL" | jq -r '.[] | "\(.instance_id)|\(.repo)"')
+    
+    if [ -z "$PROBLEMS" ]; then
+        echo -e "${YELLOW}Failed to fetch problems from SWE-Bench${NC}"
+        exit 1
+    fi
+    
+    # Count problems and select random one
+    local PROBLEM_COUNT=$(echo "$PROBLEMS" | wc -l)
+    local RANDOM_INDEX=$((RANDOM % PROBLEM_COUNT + 1))
+    local SELECTED=$(echo "$PROBLEMS" | sed -n "${RANDOM_INDEX}p")
+    
+    # Parse problem ID and repo
+    PROBLEM_ID=$(echo "$SELECTED" | cut -d'|' -f1)
+    REPO_NAME=$(echo "$SELECTED" | cut -d'|' -f2)
+    
+    echo -e "${GREEN}Selected random problem: $PROBLEM_ID from $REPO_NAME${NC}"
+}
+
 # Main execution
 main() {
     local PROBLEM_ID="${1:-}"
     local REPO_NAME="${2:-}"
     
-    if [ -z "$PROBLEM_ID" ] || [ -z "$REPO_NAME" ]; then
-        echo "Usage: $0 <problem_id> <repo_name>"
-        echo "Example: $0 django__django-12345 django/django"
-        exit 1
-    fi
-    
     status "Checking prerequisites..."
     check_prerequisites
+    
+    # If no arguments provided, get random problem
+    if [ -z "$PROBLEM_ID" ]; then
+        get_random_problem
+    elif [ -z "$REPO_NAME" ]; then
+        echo "Usage: $0 [problem_id repo_name]"
+        echo "Examples:"
+        echo "  $0                    # Random problem"
+        echo "  $0 django__django-12345 django/django  # Specific problem"
+        exit 1
+    fi
     
     # Setup working directory
     WORK_DIR="/tmp/swebench-swarm-$$"
