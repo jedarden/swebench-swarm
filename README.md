@@ -44,6 +44,31 @@ After successful validation:
 
 ## Quick Start
 
+### One-Line Execution
+
+Run SWE-Bench problems and submit results as a pull request:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/jedarden/swebench-swarm/main/run-swebench.sh | bash -s -- <problem_id> <repo_name>
+```
+
+**Prerequisites**: Docker, Docker Compose, Git, and GitHub CLI (`gh`) must be installed.
+
+Example:
+```bash
+curl -sSL https://raw.githubusercontent.com/jedarden/swebench-swarm/main/run-swebench.sh | bash -s -- django__django-12345 django/django
+```
+
+This command will:
+1. Clone and set up SWE-Bench Swarm
+2. Start the Docker services
+3. Submit and solve the specified problem
+4. Collect results and performance metrics
+5. Fork the repository (if needed)
+6. Create a pull request with prefix `results/`
+
+### Manual Setup
+
 1. Clone the repository:
    ```bash
    git clone https://github.com/jedarden/swebench-swarm.git

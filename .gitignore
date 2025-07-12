@@ -49,3 +49,5 @@ dist/
 *.tmp
 *.temp
 .cache/
+
+.devcontainer/installation-report.md
