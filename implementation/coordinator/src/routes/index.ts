@@ -4,6 +4,7 @@ import { swarmRoutes } from './swarmRoutes';
 import { agentRoutes } from './agentRoutes';
 import { taskRoutes } from './taskRoutes';
 import { performanceRoutes } from './performanceRoutes';
+import { setupSWEBenchRoutes } from './swebench';
 
 /**
  * Setup all API routes
@@ -18,6 +19,9 @@ export function setupRoutes(app: Express, coordinator: SwarmCoordinator): void {
   app.use(`${apiPrefix}/tasks`, taskRoutes(coordinator));
   app.use(`${apiPrefix}/performance`, performanceRoutes(coordinator));
   
+  // SWE-Bench specific routes (also available at /api for compatibility)
+  setupSWEBenchRoutes(app);
+  
   // Root API info
   app.get(apiPrefix, (req, res) => {
     res.json({
@@ -27,7 +31,8 @@ export function setupRoutes(app: Express, coordinator: SwarmCoordinator): void {
         swarm: `${apiPrefix}/swarm`,
         agents: `${apiPrefix}/agents`,
         tasks: `${apiPrefix}/tasks`,
-        performance: `${apiPrefix}/performance`
+        performance: `${apiPrefix}/performance`,
+        swebench: '/api/swebench'
       }
     });
   });

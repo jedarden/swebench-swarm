@@ -1,0 +1,8 @@
+# SWE-bench Dataset Fetching Dependencies
+datasets>=2.14.0
+huggingface-hub>=0.16.0
+transformers>=4.30.0
+
+# Official SWE-bench evaluation harness (future integration)
+# Note: Install via git clone for full functionality
+# git clone https://github.com/princeton-nlp/SWE-bench.git

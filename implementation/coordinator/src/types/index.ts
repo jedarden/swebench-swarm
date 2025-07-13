@@ -91,9 +91,70 @@ export interface AgentResources {
   networkUsage: number;
 }
 
-export interface TaskStatus {
+// Task Management Types
+export enum TaskStatus {
+  PENDING = "pending",
+  IN_PROGRESS = "in_progress", 
+  COMPLETED = "completed",
+  FAILED = "failed"
+}
+
+export enum TaskPriority {
+  LOW = "low",
+  MEDIUM = "medium", 
+  HIGH = "high",
+  CRITICAL = "critical"
+}
+
+export interface Task {
+  id: string;
+  name: string;
+  description: string;
+  type: string;
+  status: TaskStatus;
+  priority: TaskPriority;
+  createdAt: Date;
+  updatedAt: Date;
+  completedAt?: Date;
+  assignedTo?: string;
+  metadata?: Record<string, any>;
+  tags: string[];
+  dependencies: string[];
+  result?: any;
+  errors?: string[];
+  logs: Array<{
+    timestamp: Date;
+    message: string;
+    level: 'info' | 'warn' | 'error';
+  }>;
+}
+
+export interface CreateTaskDTO {
+  name: string;
+  description: string;
+  type: string;
+  priority?: TaskPriority;
+  assignedTo?: string;
+  metadata?: Record<string, any>;
+  tags?: string[];
+  dependencies?: string[];
+}
+
+export interface UpdateTaskDTO {
+  name?: string;
+  description?: string;
+  status?: TaskStatus;
+  priority?: TaskPriority;
+  assignedTo?: string;
+  metadata?: Record<string, any>;
+  tags?: string[];
+  result?: any; // Allow flexible result structure
+  errors?: string[];
+}
+
+export interface TaskStatusInfo {
   taskId: string;
-  status: "pending" | "in_progress" | "completed" | "failed";
+  status: TaskStatus;
   progress: number;
   startTime?: Date;
   endTime?: Date;

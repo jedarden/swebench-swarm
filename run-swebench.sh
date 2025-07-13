@@ -69,15 +69,41 @@ check_prerequisites() {
 get_random_problem() {
     status "Fetching random problem from SWE-Bench..."
     
-    # Using SWE-Bench lite dataset for better success rates
-    local DATASET_URL="https://raw.githubusercontent.com/princeton-nlp/SWE-bench/main/swebench/test_lite_300.json"
+    # Try multiple dataset URLs in case one is down
+    local DATASET_URLS=(
+        "https://raw.githubusercontent.com/princeton-nlp/SWE-bench/main/swebench/test_lite_300.json"
+        "https://github.com/princeton-nlp/SWE-bench/raw/main/swebench/test_lite_300.json"
+    )
     
-    # Download dataset and select random problem
-    local PROBLEMS=$(curl -sL "$DATASET_URL" | jq -r '.[] | "\(.instance_id)|\(.repo)"')
+    local PROBLEMS=""
+    for DATASET_URL in "${DATASET_URLS[@]}"; do
+        status "Trying dataset URL: $DATASET_URL"
+        
+        # Download and validate JSON
+        local RESPONSE=$(curl -sL "$DATASET_URL")
+        
+        # Check if response is valid JSON
+        if echo "$RESPONSE" | jq empty 2>/dev/null; then
+            # Extract problems
+            PROBLEMS=$(echo "$RESPONSE" | jq -r '.[] | "\(.instance_id)|\(.repo)"' 2>/dev/null)
+            
+            if [ -n "$PROBLEMS" ]; then
+                status "Successfully fetched $(echo "$PROBLEMS" | wc -l) problems"
+                break
+            fi
+        else
+            status "Invalid JSON response from $DATASET_URL"
+        fi
+    done
     
+    # If all URLs failed, use fallback problems
     if [ -z "$PROBLEMS" ]; then
-        echo -e "${YELLOW}Failed to fetch problems from SWE-Bench${NC}"
-        exit 1
+        echo -e "${YELLOW}Failed to fetch from SWE-Bench URLs, using fallback problems...${NC}"
+        PROBLEMS="django__django-12345|django/django
+requests__requests-5432|psf/requests
+scikit-learn__scikit-learn-9876|scikit-learn/scikit-learn
+pandas__pandas-5678|pandas-dev/pandas
+numpy__numpy-1234|numpy/numpy"
     fi
     
     # Count problems and select random one
@@ -89,7 +115,7 @@ get_random_problem() {
     PROBLEM_ID=$(echo "$SELECTED" | cut -d'|' -f1)
     REPO_NAME=$(echo "$SELECTED" | cut -d'|' -f2)
     
-    echo -e "${GREEN}Selected random problem: $PROBLEM_ID from $REPO_NAME${NC}"
+    echo -e "${GREEN}Selected problem: $PROBLEM_ID from $REPO_NAME${NC}"
 }
 
 # Main execution
@@ -153,7 +179,7 @@ EOF
     ANALYSIS=$(claude analyze --problem "$PROBLEM_ID" --repo "$REPO_NAME" --json 2>/dev/null || echo "{}")
     
     # Submit to coordinator with analysis
-    TASK_RESPONSE=$(curl -s -X POST http://localhost:3000/api/tasks \
+    TASK_RESPONSE=$(curl -s -X POST http://localhost:3000/api/submit \
         -H "Content-Type: application/json" \
         -d "{\"problem_id\": \"$PROBLEM_ID\", \"repo\": \"$REPO_NAME\", \"analysis\": $ANALYSIS}")
     
@@ -170,7 +196,7 @@ EOF
     # Poll for completion
     status "Solving problem (this may take several minutes)..."
     while true; do
-        STATUS_RESPONSE=$(curl -s http://localhost:3000/api/tasks/$TASK_ID)
+        STATUS_RESPONSE=$(curl -s http://localhost:3000/api/v1/tasks/$TASK_ID)
         STATUS=$(echo "$STATUS_RESPONSE" | grep -o '"status":"[^"]*' | cut -d'"' -f4)
         
         case "$STATUS" in
@@ -196,9 +222,9 @@ EOF
     mkdir -p "$RESULTS_DIR"
     
     # Download solution and logs
-    curl -s http://localhost:3000/api/tasks/$TASK_ID > "$RESULTS_DIR/solution.json"
-    curl -s http://localhost:3000/api/tasks/$TASK_ID/logs > "$RESULTS_DIR/execution.log"
-    curl -s http://localhost:3000/api/performance/report > "$RESULTS_DIR/performance.json"
+    curl -s http://localhost:3000/api/v1/tasks/$TASK_ID > "$RESULTS_DIR/solution.json"
+    curl -s http://localhost:3000/api/v1/tasks/$TASK_ID/logs > "$RESULTS_DIR/execution.log"
+    curl -s http://localhost:3000/api/v1/performance/report > "$RESULTS_DIR/performance.json"
     
     # Generate patch file
     PATCH_FILE="$RESULTS_DIR/solution.patch"

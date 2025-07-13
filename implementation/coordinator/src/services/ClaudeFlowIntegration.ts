@@ -371,93 +371,13 @@ export class ClaudeFlowIntegration {
         
         return JSON.parse(stdout);
       } catch (error) {
-        this.logger.warn('Claude Code MCP call failed, using fallback', { error });
-        
-        // Fallback to npx claude-flow
-        const flowCommand = `npx claude-flow@alpha mcp ${toolName} '${toolParams}'`;
-        
-        try {
-          const { stdout } = await execAsync(flowCommand);
-          return JSON.parse(stdout);
-        } catch (flowError) {
-          this.logger.warn('Claude Flow MCP call failed, using simulation', { flowError });
-          
-          // Final fallback to simulation for development
-          return this.simulateMCPTool(toolName, parameters);
-        }
+        this.logger.error('Claude Code MCP call failed', { toolName, error });
+        throw new SwarmException('MCP_CALL_FAILED', `Claude Code MCP call failed for ${toolName}: ${error}`);
       }
     } catch (error) {
-      this.logger.error('MCP tool call failed', { toolName, error });
-      throw new SwarmException('MCP_TOOL_FAILED', `Failed to call MCP tool: ${toolName}`);
+      this.logger.error('MCP tool execution failed', { toolName, error });
+      throw new SwarmException('MCP_TOOL_FAILED', `Failed to execute MCP tool ${toolName}: ${error}`);
     }
   }
 
-  private simulateMCPTool(toolName: string, parameters: any): any {
-    // Simulation fallback for development
-    switch (toolName) {
-      case 'swarm_init':
-        return {
-          swarmId: `swarm-${Date.now()}`,
-          status: 'initialized',
-          topology: parameters.topology,
-          maxAgents: parameters.maxAgents
-        };
-
-      case 'agent_spawn':
-        return {
-          agentId: `cf-agent-${Date.now()}`,
-          type: parameters.type,
-          status: 'spawned'
-        };
-
-      case 'memory_usage':
-        if (parameters.action === 'store') {
-          return { success: true, stored: true };
-        } else if (parameters.action === 'retrieve') {
-          return { value: null };
-        }
-        break;
-
-      case 'task_orchestrate':
-        return {
-          taskId: `task-${Date.now()}`,
-          status: 'orchestrated',
-          strategy: parameters.strategy
-        };
-
-      case 'swarm_status':
-        return {
-          swarmId: parameters.swarmId,
-          status: 'active',
-          activeAgents: 3,
-          topology: 'hierarchical'
-        };
-
-      case 'neural_train':
-        return {
-          success: true,
-          epochs: parameters.epochs,
-          pattern_type: parameters.pattern_type
-        };
-
-      case 'performance_report':
-        return {
-          timeframe: parameters.timeframe,
-          metrics: {
-            efficiency: 85.5,
-            throughput: 12.3,
-            errorRate: 2.1
-          }
-        };
-
-      case 'swarm_destroy':
-        return {
-          swarmId: parameters.swarmId,
-          status: 'destroyed'
-        };
-
-      default:
-        throw new Error(`Unknown MCP tool: ${toolName}`);
-    }
-  }
 }

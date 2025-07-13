@@ -51,3 +51,13 @@ dist/
 .cache/
 
 .devcontainer/installation-report.md
+
+# SWE-bench specific
+.swebench-cache/
+.swebench-work/
+.swebench-predictions/
+.swebench-results/
+.swebench-harness/
+.swebench-evaluations/
+.claude-code-work/
+.test-output/

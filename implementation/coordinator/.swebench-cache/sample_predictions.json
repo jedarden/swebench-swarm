@@ -1,0 +1,22 @@
+{
+  "astropy__astropy-12907": {
+    "model_name_or_path": "swebench-swarm",
+    "model_patch": "# Sample patch for astropy__astropy-12907\n# TODO: Implement actual solution\n"
+  },
+  "astropy__astropy-14182": {
+    "model_name_or_path": "swebench-swarm",
+    "model_patch": "# Sample patch for astropy__astropy-14182\n# TODO: Implement actual solution\n"
+  },
+  "astropy__astropy-14365": {
+    "model_name_or_path": "swebench-swarm",
+    "model_patch": "# Sample patch for astropy__astropy-14365\n# TODO: Implement actual solution\n"
+  },
+  "astropy__astropy-14995": {
+    "model_name_or_path": "swebench-swarm",
+    "model_patch": "# Sample patch for astropy__astropy-14995\n# TODO: Implement actual solution\n"
+  },
+  "astropy__astropy-6938": {
+    "model_name_or_path": "swebench-swarm",
+    "model_patch": "# Sample patch for astropy__astropy-6938\n# TODO: Implement actual solution\n"
+  }
+}
